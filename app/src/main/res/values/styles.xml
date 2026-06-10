@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Pillow App Theme -->
-    <style name="Theme.Pillow" parent="android:Theme.Material.Light">
-        <!-- This theme will be overridden by Jetpack Compose -->
+    <!-- NoActionBar so Android does not draw its own title bar; the only title bar
+         comes from the Compose TopAppBar. This theme is otherwise overridden by Compose. -->
+    <style name="Theme.Pillow" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
     </style>
 </resources>

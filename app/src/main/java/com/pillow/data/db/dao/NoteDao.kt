@@ -57,6 +57,10 @@ interface NoteDao {
     @Query("SELECT * FROM notes WHERE is_archived = 0 AND is_deleted = 0")
     suspend fun getAllNotes(): List<NoteEntity>
 
+    /** Every note regardless of archived/trashed state — used for full backups. */
+    @Query("SELECT * FROM notes")
+    suspend fun getAllNotesRaw(): List<NoteEntity>
+
     @Query("UPDATE notes SET is_pinned = :pinned WHERE id = :noteId")
     suspend fun updateNotePinnedStatus(noteId: Long, pinned: Boolean)
 

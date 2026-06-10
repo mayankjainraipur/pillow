@@ -1,5 +1,10 @@
 package com.pillow.ui.screen
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -7,11 +12,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +38,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.pillow.presentation.viewmodel.SettingsViewModel
+import com.pillow.presentation.viewmodel.ThemeMode
+import com.pillow.ui.theme.AccentPalettes
+import com.pillow.ui.theme.NoteThemes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,7 +48,10 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     onBackClick: () -> Unit = {}
 ) {
-    val darkMode = viewModel.darkModeState.collectAsState()
+    val themeMode = viewModel.themeModeState.collectAsState()
+    val accentColor = viewModel.accentColorState.collectAsState()
+    val defaultNoteColor = viewModel.defaultNoteColorState.collectAsState()
+    val defaultTileView = viewModel.defaultTileViewState.collectAsState()
     val biometricEnabled = viewModel.biometricEnabledState.collectAsState()
 
     Scaffold(
@@ -59,20 +76,132 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
+                .padding(vertical = 16.dp)
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Dark Mode Toggle
-            SettingItem(
-                title = "Dark Mode",
-                description = "Enable dark theme for the app",
-                isEnabled = darkMode.value,
-                onToggle = { viewModel.setDarkMode(it) }
+            // Theme mode
+            SectionHeader("Theme")
+            val modes = listOf(
+                ThemeMode.LIGHT to "Light",
+                ThemeMode.DARK to "Dark",
+                ThemeMode.SYSTEM to "System"
             )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                modes.forEach { (value, label) ->
+                    FilterChip(
+                        selected = themeMode.value == value,
+                        onClick = { viewModel.setThemeMode(value) },
+                        label = { Text(label) }
+                    )
+                }
+            }
 
-            Spacer(modifier = Modifier.height(1.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // Biometric Auth Toggle
+            // Accent color
+            SectionHeader("Accent color")
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(AccentPalettes.all) { accent ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .background(accent.swatch, CircleShape)
+                                .then(
+                                    if (accentColor.value == accent.key)
+                                        Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                                    else Modifier
+                                )
+                                .clickable { viewModel.setAccentColor(accent.key) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (accentColor.value == accent.key) {
+                                Icon(
+                                    Icons.Filled.Check,
+                                    contentDescription = null,
+                                    tint = androidx.compose.ui.graphics.Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(accent.label, style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Default note color
+            SectionHeader("Default note color")
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(NoteThemes.all) { theme ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .background(theme.background, CircleShape)
+                                .then(
+                                    if (defaultNoteColor.value.equals(theme.backgroundHex, ignoreCase = true))
+                                        Modifier.border(3.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                                    else Modifier
+                                )
+                                .clickable { viewModel.setDefaultNoteColor(theme.backgroundHex) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (defaultNoteColor.value.equals(theme.backgroundHex, ignoreCase = true)) {
+                                Icon(
+                                    Icons.Filled.Check,
+                                    contentDescription = null,
+                                    tint = theme.onBackground,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(theme.label, style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Default view
+            SectionHeader("Default view")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = !defaultTileView.value,
+                    onClick = { viewModel.setDefaultTileView(false) },
+                    label = { Text("List") }
+                )
+                FilterChip(
+                    selected = defaultTileView.value,
+                    onClick = { viewModel.setDefaultTileView(true) },
+                    label = { Text("Tile") }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // App Lock
+            SectionHeader("Security")
             SettingItem(
                 title = "App Lock",
                 description = "Secure your notes with fingerprint authentication",
@@ -82,7 +211,7 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // About Section
+            // About
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                 Text(
                     "About",
@@ -90,10 +219,7 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "Pillow Notes v1.0.0",
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Text("Pillow Notes v1.0.0", style = MaterialTheme.typography.bodyMedium)
                 Text(
                     "A beautiful notes app to capture your thoughts",
                     style = MaterialTheme.typography.bodySmall,
@@ -102,6 +228,16 @@ fun SettingsScreen(
             }
         }
     }
+}
+
+@Composable
+private fun SectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+    )
 }
 
 @Composable
@@ -118,10 +254,7 @@ fun SettingItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge
-            )
+            Text(text = title, style = MaterialTheme.typography.bodyLarge)
             if (description.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -131,12 +264,7 @@ fun SettingItem(
                 )
             }
         }
-
         Spacer(modifier = Modifier.height(8.dp))
-
-        Switch(
-            checked = isEnabled,
-            onCheckedChange = onToggle
-        )
+        Switch(checked = isEnabled, onCheckedChange = onToggle)
     }
 }

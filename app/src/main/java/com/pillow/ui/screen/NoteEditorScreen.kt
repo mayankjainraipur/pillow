@@ -45,9 +45,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.FilterChip
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.pillow.domain.model.Note
+import com.pillow.presentation.viewmodel.CategoryViewModel
 import com.pillow.presentation.viewmodel.NoteViewModel
+import com.pillow.presentation.viewmodel.SettingsViewModel
 import com.pillow.ui.theme.NoteTheme
 import com.pillow.ui.theme.NoteThemes
 
@@ -56,15 +59,27 @@ import com.pillow.ui.theme.NoteThemes
 fun NoteEditorScreen(
     noteId: Long = 0,
     viewModel: NoteViewModel = hiltViewModel(),
+    categoryViewModel: CategoryViewModel = hiltViewModel(),
+    settingsViewModel: SettingsViewModel = hiltViewModel(),
     onBackClick: () -> Unit = {}
 ) {
     val currentNote = viewModel.currentNoteState.collectAsState()
+    val buckets = categoryViewModel.categoriesState.collectAsState()
+    val defaultNoteColor = settingsViewModel.defaultNoteColorState.collectAsState()
 
     var title by remember { mutableStateOf("") }
     var content by remember { mutableStateOf("") }
-    var selectedTheme by remember { mutableStateOf(NoteThemes.Default) }
+    var selectedTheme by remember { mutableStateOf(NoteThemes.fromHex(defaultNoteColor.value)) }
+    var selectedBucketId by remember { mutableStateOf<Long?>(null) }
     // New notes need no loading; existing notes initialize once their data arrives.
     var initialized by remember { mutableStateOf(noteId <= 0) }
+
+    // For a brand-new note, apply the user's default note color once it loads.
+    LaunchedEffect(defaultNoteColor.value) {
+        if (noteId <= 0 && content.isEmpty() && title.isEmpty()) {
+            selectedTheme = NoteThemes.fromHex(defaultNoteColor.value)
+        }
+    }
 
     // Trigger the load exactly once per noteId (not on every recomposition).
     LaunchedEffect(noteId) {
@@ -79,6 +94,7 @@ fun NoteEditorScreen(
             title = note.title
             content = note.content
             selectedTheme = NoteThemes.fromHex(note.color)
+            selectedBucketId = note.categoryId
             initialized = true
         }
     }
@@ -166,6 +182,27 @@ fun NoteEditorScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            Text("Bucket", style = MaterialTheme.typography.labelLarge, color = selectedTheme.onBackground)
+            Spacer(modifier = Modifier.height(8.dp))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                item {
+                    FilterChip(
+                        selected = selectedBucketId == null,
+                        onClick = { selectedBucketId = null },
+                        label = { Text("None") }
+                    )
+                }
+                items(buckets.value) { bucket ->
+                    FilterChip(
+                        selected = selectedBucketId == bucket.id,
+                        onClick = { selectedBucketId = bucket.id },
+                        label = { Text(bucket.name.ifEmpty { "Untitled" }) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
             VoiceMemoSection(noteId = noteId, labelColor = selectedTheme.onBackground)
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -187,6 +224,7 @@ fun NoteEditorScreen(
                             title = title,
                             content = content,
                             color = selectedTheme.backgroundHex,
+                            categoryId = selectedBucketId,
                             updatedAt = System.currentTimeMillis()
                         )
                         if (noteId > 0) viewModel.updateNote(note) else viewModel.createNote(note)

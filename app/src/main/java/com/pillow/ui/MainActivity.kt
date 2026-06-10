@@ -26,8 +26,10 @@ import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.foundation.isSystemInDarkTheme
 import com.pillow.biometric.BiometricAuthManager
 import com.pillow.presentation.viewmodel.SettingsViewModel
+import com.pillow.presentation.viewmodel.ThemeMode
 import com.pillow.ui.navigation.PillowNavGraph
 import com.pillow.ui.theme.PillowTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -43,8 +45,15 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             val settingsViewModel: SettingsViewModel = hiltViewModel()
-            val darkMode = settingsViewModel.darkModeState.collectAsState()
+            val themeMode = settingsViewModel.themeModeState.collectAsState()
+            val accentColor = settingsViewModel.accentColorState.collectAsState()
             val biometricEnabled = settingsViewModel.biometricEnabledState.collectAsState()
+
+            val darkTheme = when (themeMode.value) {
+                ThemeMode.DARK -> true
+                ThemeMode.LIGHT -> false
+                else -> isSystemInDarkTheme()
+            }
 
             // Whether the app content is currently locked behind biometric auth.
             var isLocked by remember { mutableStateOf(false) }
@@ -55,7 +64,7 @@ class MainActivity : FragmentActivity() {
                 isLocked = biometricEnabled.value && biometricAuthManager.isBiometricAvailable()
             }
 
-            PillowTheme(darkTheme = darkMode.value) {
+            PillowTheme(darkTheme = darkTheme, accentKey = accentColor.value) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background

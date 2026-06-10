@@ -82,6 +82,18 @@ class NoteViewModel @Inject constructor(
         }
     }
 
+    private val _categoryNotesState = MutableStateFlow<List<Note>>(emptyList())
+    val categoryNotesState: StateFlow<List<Note>> = _categoryNotesState.asStateFlow()
+
+    /** Load the notes that belong to a single bucket (category). */
+    fun loadNotesByCategory(categoryId: Long) {
+        viewModelScope.launch {
+            noteRepository.getNotesByCategoryFlow(categoryId).collectLatest { notes ->
+                _categoryNotesState.value = notes
+            }
+        }
+    }
+
     fun loadNoteById(noteId: Long) {
         viewModelScope.launch {
             _isLoadingState.value = true

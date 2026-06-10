@@ -14,6 +14,13 @@ captures/
 # Local configuration (machine-specific SDK path, secrets)
 local.properties
 
+# Local AI assistant / editor config (personal, not shared).
+# Note: shared config like .claude/settings.json or .github/ stays tracked on purpose.
+.claude/settings.local.json
+.cursor/
+.aider*
+.windsurf/
+
 # Signing keys — never commit these
 *.jks
 *.keystore

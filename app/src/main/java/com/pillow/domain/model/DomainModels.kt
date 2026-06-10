@@ -19,7 +19,8 @@ data class Category(
     val id: Long = 0,
     val name: String = "",
     val createdAt: Long = System.currentTimeMillis(),
-    val color: String = "#FF6B6B"
+    val color: String = "#FF6B6B",
+    val isDefault: Boolean = false
 )
 
 data class Tag(

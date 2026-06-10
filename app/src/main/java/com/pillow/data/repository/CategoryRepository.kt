@@ -20,9 +20,10 @@ class CategoryRepository @Inject constructor(
         categoryDao.updateCategory(entity)
     }
 
+    /** Deletes a bucket unless it is the protected default bucket. */
     suspend fun deleteCategory(categoryId: Long) {
         val category = categoryDao.getCategoryById(categoryId)
-        if (category != null) {
+        if (category != null && !category.isDefault) {
             categoryDao.deleteCategory(category)
         }
     }
@@ -31,6 +32,21 @@ class CategoryRepository @Inject constructor(
         val entity = categoryDao.getCategoryById(categoryId)
         return entity?.let { entityToCategory(it) }
     }
+
+    /** Returns the default bucket's id, creating it on first run if needed. */
+    suspend fun ensureDefaultBucket(): Long {
+        val existing = categoryDao.getDefaultCategory()
+        if (existing != null) return existing.id
+        return categoryDao.insertCategory(
+            CategoryEntity(
+                name = "General",
+                color = "#6B6B9D",
+                isDefault = true
+            )
+        )
+    }
+
+    suspend fun getDefaultBucketId(): Long? = categoryDao.getDefaultCategory()?.id
 
     fun getAllCategoriesFlow(): Flow<List<Category>> {
         return categoryDao.getAllCategoriesFlow().map { entities ->
@@ -47,7 +63,8 @@ class CategoryRepository @Inject constructor(
             id = category.id,
             name = category.name,
             createdAt = category.createdAt,
-            color = category.color
+            color = category.color,
+            isDefault = category.isDefault
         )
     }
 
@@ -56,7 +73,8 @@ class CategoryRepository @Inject constructor(
             id = entity.id,
             name = entity.name,
             createdAt = entity.createdAt,
-            color = entity.color
+            color = entity.color,
+            isDefault = entity.isDefault
         )
     }
 }

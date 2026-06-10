@@ -22,7 +22,7 @@ import com.pillow.data.db.entity.VoiceMemoEntity
         NoteTagCrossRef::class,
         VoiceMemoEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class PillowDatabase : RoomDatabase() {

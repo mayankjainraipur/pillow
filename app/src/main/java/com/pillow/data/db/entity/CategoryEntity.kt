@@ -16,5 +16,9 @@ data class CategoryEntity(
     val createdAt: Long = System.currentTimeMillis(),
     
     @ColumnInfo(name = "color")
-    val color: String = "#FF6B6B"
+    val color: String = "#FF6B6B",
+
+    /** The seeded fallback bucket. Exactly one exists and it cannot be deleted. */
+    @ColumnInfo(name = "is_default")
+    val isDefault: Boolean = false
 )

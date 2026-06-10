@@ -23,7 +23,14 @@ class CategoryViewModel @Inject constructor(
     private val _isLoadingState = MutableStateFlow(false)
     val isLoadingState: StateFlow<Boolean> = _isLoadingState.asStateFlow()
 
+    private val _defaultBucketIdState = MutableStateFlow<Long?>(null)
+    val defaultBucketIdState: StateFlow<Long?> = _defaultBucketIdState.asStateFlow()
+
     init {
+        viewModelScope.launch {
+            // Make sure the protected default bucket exists, then expose its id.
+            _defaultBucketIdState.value = categoryRepository.ensureDefaultBucket()
+        }
         loadAllCategories()
     }
 

@@ -52,29 +52,29 @@ fun BackupScreen(
     val status = viewModel.statusState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Export: create a document, then write the backup JSON to it.
+    // Export: create a document, then write the backup blob to it.
     val exportLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json")
+        ActivityResultContracts.CreateDocument("application/octet-stream")
     ) { uri ->
         if (uri != null) {
-            viewModel.exportTo { json ->
+            viewModel.exportTo { bytes ->
                 withContext(Dispatchers.IO) {
                     context.contentResolver.openOutputStream(uri)?.use { out ->
-                        out.write(json.toByteArray())
+                        out.write(bytes)
                     }
                 }
             }
         }
     }
 
-    // Restore: open a document, then read its text and import it.
+    // Restore: open a document, then read its bytes and import it.
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
             viewModel.importFrom {
                 withContext(Dispatchers.IO) {
-                    context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                    context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                 }
             }
         }
@@ -114,18 +114,18 @@ fun BackupScreen(
         ) {
             BackupCard(
                 title = "Save to file",
-                description = "Export all your notes and buckets to a .json file on this device.",
+                description = "Export all your notes and buckets to a .pillowbak file on this device.",
                 buttonText = "Export",
                 icon = Icons.Filled.Backup,
-                onClick = { exportLauncher.launch("pillow_backup.json") }
+                onClick = { exportLauncher.launch("pillow_backup.pillowbak") }
             )
 
             BackupCard(
                 title = "Restore from file",
-                description = "Pick a previously exported .json file. Its notes and buckets are added to your current notes.",
+                description = "Pick a previously exported .pillowbak file. Its notes and buckets are added to your current notes.",
                 buttonText = "Restore",
                 icon = Icons.Filled.Restore,
-                onClick = { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) }
+                onClick = { importLauncher.launch(arrayOf("application/octet-stream", "*/*")) }
             )
 
             BackupCard(
@@ -134,17 +134,17 @@ fun BackupScreen(
                 buttonText = "Share",
                 icon = Icons.Filled.Share,
                 onClick = {
-                    viewModel.shareVia { json ->
+                    viewModel.shareVia { bytes ->
                         withContext(Dispatchers.IO) {
-                            val file = File(context.cacheDir, "pillow_backup.json")
-                            file.writeText(json)
+                            val file = File(context.cacheDir, "pillow_backup.pillowbak")
+                            file.writeBytes(bytes)
                             val uri = FileProvider.getUriForFile(
                                 context,
                                 "${context.packageName}.fileprovider",
                                 file
                             )
                             val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "application/json"
+                                type = "application/octet-stream"
                                 putExtra(Intent.EXTRA_STREAM, uri)
                                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                             }

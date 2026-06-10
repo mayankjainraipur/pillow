@@ -122,32 +122,30 @@ fun HomeScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                // Fixed search row: search field + list/tile toggle.
-                Row(
+                // Fixed, rounded search bar with the list/tile toggle tucked inside.
+                OutlinedTextField(
+                    value = searchQuery.value,
+                    onValueChange = {
+                        searchQuery.value = it
+                        viewModel.searchNotes(it)
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = searchQuery.value,
-                        onValueChange = {
-                            searchQuery.value = it
-                            viewModel.searchNotes(it)
-                        },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("Search notes...") },
-                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                        singleLine = true
-                    )
-                    IconButton(onClick = { userToggledTile = !isTileView }) {
-                        Icon(
-                            imageVector = if (isTileView) Icons.AutoMirrored.Filled.ViewList
-                            else Icons.Filled.GridView,
-                            contentDescription = if (isTileView) "List view" else "Tile view"
-                        )
-                    }
-                }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    placeholder = { Text("Search notes...") },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    trailingIcon = {
+                        IconButton(onClick = { userToggledTile = !isTileView }) {
+                            Icon(
+                                imageVector = if (isTileView) Icons.AutoMirrored.Filled.ViewList
+                                else Icons.Filled.GridView,
+                                contentDescription = if (isTileView) "List view" else "Tile view"
+                            )
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(28.dp)
+                )
 
                 if (notes.value.isEmpty()) {
                     Column(

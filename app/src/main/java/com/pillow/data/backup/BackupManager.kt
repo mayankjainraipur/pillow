@@ -6,6 +6,10 @@ import com.pillow.data.db.entity.CategoryEntity
 import com.pillow.data.db.entity.NoteEntity
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.util.zip.GZIPInputStream
+import java.util.zip.GZIPOutputStream
 import javax.inject.Inject
 
 /**
@@ -22,9 +26,36 @@ class BackupManager @Inject constructor(
 ) {
     companion object {
         const val BACKUP_VERSION = 1
+        /** Identifies a Pillow backup and guards against accidentally-edited files. */
+        private val MAGIC = byteArrayOf('P'.code.toByte(), 'L'.code.toByte(), 'W'.code.toByte(), 'B'.code.toByte(), 1)
     }
 
-    suspend fun exportToJson(): String {
+    /**
+     * A compact binary blob: 5-byte magic header + GZIP-compressed JSON. Being
+     * gzipped (with its own CRC) it is not human-editable, so a backup tampered
+     * with in transit fails to decompress rather than silently corrupting data.
+     */
+    suspend fun exportToBytes(): ByteArray {
+        val json = exportToJson()
+        val out = ByteArrayOutputStream()
+        out.write(MAGIC)
+        GZIPOutputStream(out).use { it.write(json.toByteArray(Charsets.UTF_8)) }
+        return out.toByteArray()
+    }
+
+    /** Returns the number of notes imported. Throws if the file is not a valid backup. */
+    suspend fun importFromBytes(bytes: ByteArray): Int {
+        require(bytes.size > MAGIC.size && bytes.copyOfRange(0, MAGIC.size).contentEquals(MAGIC)) {
+            "Not a valid Pillow backup file"
+        }
+        val payload = bytes.copyOfRange(MAGIC.size, bytes.size)
+        val json = GZIPInputStream(ByteArrayInputStream(payload)).use { gz ->
+            gz.readBytes().toString(Charsets.UTF_8)
+        }
+        return importFromJson(json)
+    }
+
+    private suspend fun exportToJson(): String {
         val root = JSONObject()
         root.put("version", BACKUP_VERSION)
 
@@ -63,8 +94,7 @@ class BackupManager @Inject constructor(
         return root.toString(2)
     }
 
-    /** Returns the number of notes imported. Throws on malformed JSON. */
-    suspend fun importFromJson(json: String): Int {
+    private suspend fun importFromJson(json: String): Int {
         val root = JSONObject(json)
 
         // Insert buckets first, building an old-id -> new-id map.

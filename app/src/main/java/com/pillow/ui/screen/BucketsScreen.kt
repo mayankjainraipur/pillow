@@ -167,8 +167,11 @@ private fun BucketRow(
             IconButton(onClick = onEdit) {
                 Icon(Icons.Filled.Edit, contentDescription = "Rename")
             }
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Filled.Delete, contentDescription = "Delete")
+            // The default bucket is protected — no delete so notes always have a home.
+            if (!bucket.isDefault) {
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Filled.Delete, contentDescription = "Delete")
+                }
             }
         }
     }

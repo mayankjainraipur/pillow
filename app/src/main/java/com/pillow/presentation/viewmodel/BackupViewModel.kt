@@ -27,11 +27,11 @@ class BackupViewModel @Inject constructor(
         _statusState.value = null
     }
 
-    /** Build the backup JSON and hand it to [write] (which persists it to a Uri). */
-    fun exportTo(write: suspend (String) -> Unit) {
+    /** Build the backup blob and hand it to [write] (which persists it to a Uri). */
+    fun exportTo(write: suspend (ByteArray) -> Unit) {
         viewModelScope.launch {
             try {
-                write(backupManager.exportToJson())
+                write(backupManager.exportToBytes())
                 _statusState.value = "Backup saved successfully"
             } catch (e: Exception) {
                 _statusState.value = "Export failed: ${e.message}"
@@ -39,16 +39,16 @@ class BackupViewModel @Inject constructor(
         }
     }
 
-    /** Read JSON via [read] and merge it into the database. */
-    fun importFrom(read: suspend () -> String?) {
+    /** Read the backup blob via [read] and merge it into the database. */
+    fun importFrom(read: suspend () -> ByteArray?) {
         viewModelScope.launch {
             try {
-                val json = read()
-                if (json.isNullOrBlank()) {
+                val bytes = read()
+                if (bytes == null || bytes.isEmpty()) {
                     _statusState.value = "Could not read the selected file"
                     return@launch
                 }
-                val count = backupManager.importFromJson(json)
+                val count = backupManager.importFromBytes(bytes)
                 _statusState.value = "Restored $count note(s)"
             } catch (e: Exception) {
                 _statusState.value = "Restore failed: ${e.message}"
@@ -56,11 +56,11 @@ class BackupViewModel @Inject constructor(
         }
     }
 
-    /** Build the backup JSON and hand it to [share] (which fires a share intent). */
-    fun shareVia(share: suspend (String) -> Unit) {
+    /** Build the backup blob and hand it to [share] (which fires a share intent). */
+    fun shareVia(share: suspend (ByteArray) -> Unit) {
         viewModelScope.launch {
             try {
-                share(backupManager.exportToJson())
+                share(backupManager.exportToBytes())
             } catch (e: Exception) {
                 _statusState.value = "Share failed: ${e.message}"
             }

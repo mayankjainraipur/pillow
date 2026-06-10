@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Pillow App Theme -->
+    <style name="Theme.Pillow" parent="android:Theme.Material.Light">
+        <!-- This theme will be overridden by Jetpack Compose -->
+    </style>
+</resources>

@@ -1,14 +1,26 @@
-node_modules/
-build/
-dist/
-coverage/
-.DS_Store
-*.log
-.env*
-!.env.example
-
-# IDEs and Android
-.idea/
+# Gradle
 .gradle/
-local.properties
+build/
+
+# Android Studio / IntelliJ IDEA
+.idea/
 *.iml
+*.iws
+*.ipr
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Local configuration (machine-specific SDK path, secrets)
+local.properties
+
+# Signing keys — never commit these
+*.jks
+*.keystore
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

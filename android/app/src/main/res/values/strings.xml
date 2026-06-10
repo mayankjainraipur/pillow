@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">Pillow</string>
-    <string name="title_activity_main">Pillow</string>
-    <string name="package_name">com.pillow.notes</string>
-    <string name="custom_url_scheme">com.pillow.notes</string>
-</resources>

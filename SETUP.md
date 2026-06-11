@@ -127,6 +127,40 @@ This guide will help you set up and run the Pillow Notes Android app on your dev
    - Select your physical device
    - Click OK
 
+## Quick Start (Running the App Day-to-Day)
+
+Once the initial setup is done, these are the only 3 commands you need each session.
+
+> Run these in PowerShell from the project root. Keep the emulator window open while you work.
+
+**Step 1 — Start the emulator** (leave this terminal open):
+```powershell
+& "$env:LOCALAPPDATA\Android\Sdk\emulator\emulator.exe" -avd Pixel_9 -gpu host -no-snapshot-load
+```
+
+Wait ~30–60 seconds for the phone to fully boot.
+
+**Step 2 — Build and install the app** (in a new terminal):
+```powershell
+.\gradlew installDebug
+```
+
+**Step 3 — Launch the app:**
+```powershell
+& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" shell monkey -p com.pillow -c android.intent.category.LAUNCHER 1
+```
+
+After making code changes, just re-run steps 2 and 3 — no need to restart the emulator.
+
+**To watch live logs:**
+```powershell
+& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" logcat
+```
+
+> **Easier alternative:** Open the project in Android Studio and press the green Run button — it does all 3 steps in one click and shows logs in the Logcat panel automatically.
+
+---
+
 ## Gradle Commands
 
 ### Building
@@ -224,6 +258,12 @@ export JAVA_HOME=$(/usr/libexec/java_home -v 17)
 1. Restart the emulator
 2. Run: `adb kill-server && adb start-server`
 3. Check device list: `adb devices`
+
+### Issue: App screen is completely black on emulator
+
+The Pixel_9 AVD sometimes renders the app surface pure black due to a GPU snapshot bug — the layout is fine but nothing draws. This is not an app bug.
+
+**Fix:** Always cold-boot the emulator with host GPU (see Quick Start below). Or in Android Studio: Device Manager → Pixel_9 → Cold Boot Now, and set Graphics = Hardware in AVD settings.
 
 ### Issue: "Biometric features not available on emulator"
 

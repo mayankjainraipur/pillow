@@ -59,6 +59,7 @@ import com.pillow.domain.model.Note
 import com.pillow.presentation.viewmodel.CategoryViewModel
 import com.pillow.presentation.viewmodel.NoteViewModel
 import com.pillow.presentation.viewmodel.SettingsViewModel
+import com.pillow.presentation.viewmodel.VoiceMemoViewModel
 import com.pillow.ui.theme.NoteTheme
 import com.pillow.ui.theme.NoteThemes
 import java.text.SimpleDateFormat
@@ -72,12 +73,14 @@ fun NoteEditorScreen(
     viewModel: NoteViewModel = hiltViewModel(),
     categoryViewModel: CategoryViewModel = hiltViewModel(),
     settingsViewModel: SettingsViewModel = hiltViewModel(),
+    voiceMemoViewModel: VoiceMemoViewModel = hiltViewModel(),
     onBackClick: () -> Unit = {}
 ) {
     val currentNote = viewModel.currentNoteState.collectAsState()
     val buckets = categoryViewModel.categoriesState.collectAsState()
     val defaultBucketId = categoryViewModel.defaultBucketIdState.collectAsState()
     val defaultNoteColor = settingsViewModel.defaultNoteColorState.collectAsState()
+    val savedNoteId = viewModel.savedNoteIdState.collectAsState()
 
     var title by remember { mutableStateOf("") }
     var content by remember { mutableStateOf("") }
@@ -106,6 +109,14 @@ fun NoteEditorScreen(
         if (noteId > 0) viewModel.loadNoteById(noteId)
     }
 
+    // After a new note is created, commit any pending voice memos then navigate back.
+    LaunchedEffect(savedNoteId.value) {
+        val newId = savedNoteId.value ?: return@LaunchedEffect
+        voiceMemoViewModel.commitPendingMemos(newId)
+        viewModel.consumeSavedNoteId()
+        onBackClick()
+    }
+
     // Populate the fields the first time the matching note is emitted, then leave
     // them under the user's control so typing is never overwritten.
     LaunchedEffect(currentNote.value) {
@@ -125,7 +136,10 @@ fun NoteEditorScreen(
             TopAppBar(
                 title = { Text(if (noteId > 0) "Edit Note" else "New Note") },
                 navigationIcon = {
-                    IconButton(onClick = onBackClick) {
+                    IconButton(onClick = {
+                        if (noteId <= 0) voiceMemoViewModel.discardPendingMemos()
+                        onBackClick()
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -140,8 +154,9 @@ fun NoteEditorScreen(
                     }
                     FilledIconButton(
                         onClick = {
-                            // Don't persist an empty note — just leave the editor.
+                            // Don't persist an empty note — discard any pending memos and leave.
                             if (title.isBlank() && content.isBlank()) {
+                                voiceMemoViewModel.discardPendingMemos()
                                 onBackClick()
                                 return@FilledIconButton
                             }
@@ -153,8 +168,13 @@ fun NoteEditorScreen(
                                 categoryId = selectedBucketId ?: defaultBucketId.value,
                                 updatedAt = System.currentTimeMillis()
                             )
-                            if (noteId > 0) viewModel.updateNote(note) else viewModel.createNote(note)
-                            onBackClick()
+                            if (noteId > 0) {
+                                viewModel.updateNote(note)
+                                onBackClick()
+                            } else {
+                                // createNoteForEditor emits the ID → LaunchedEffect commits memos + navigates
+                                viewModel.createNoteForEditor(note)
+                            }
                         },
                         colors = IconButtonDefaults.filledIconButtonColors(
                             containerColor = MaterialTheme.colorScheme.onPrimary,

@@ -49,18 +49,12 @@ fun VoiceMemoSection(
     Text("Voice memos", style = MaterialTheme.typography.labelLarge, color = labelColor)
     Spacer(modifier = Modifier.height(8.dp))
 
-    if (noteId <= 0) {
-        Text(
-            "Save the note first to attach voice memos.",
-            style = MaterialTheme.typography.bodySmall,
-            color = labelColor.copy(alpha = 0.7f)
-        )
-        return
+    if (noteId > 0) {
+        LaunchedEffect(noteId) { viewModel.setNote(noteId) }
     }
 
-    LaunchedEffect(noteId) { viewModel.setNote(noteId) }
-
     val memos by viewModel.memos.collectAsState()
+    val pendingRecordings by viewModel.pendingRecordings.collectAsState()
     val isRecording by viewModel.isRecording.collectAsState()
     val micPermission = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
 
@@ -104,6 +98,32 @@ fun VoiceMemoSection(
                             modifier = Modifier.weight(1f)
                         )
                         IconButton(onClick = { viewModel.deleteMemo(memo.id) }) {
+                            Icon(Icons.Filled.Delete, contentDescription = "Delete memo")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (pendingRecordings.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(8.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            pendingRecordings.forEachIndexed { index, recording ->
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AudioPlayer(filePath = recording.filePath)
+                        Text(
+                            text = "Memo ${memos.size + index + 1} · ${formatDuration(recording.durationMs)} (unsaved)",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(onClick = { viewModel.deletePendingMemo(recording.filePath) }) {
                             Icon(Icons.Filled.Delete, contentDescription = "Delete memo")
                         }
                     }

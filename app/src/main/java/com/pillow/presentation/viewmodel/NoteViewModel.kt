@@ -115,6 +115,26 @@ class NoteViewModel @Inject constructor(
         }
     }
 
+    private val _savedNoteIdState = MutableStateFlow<Long?>(null)
+    val savedNoteIdState: StateFlow<Long?> = _savedNoteIdState.asStateFlow()
+
+    /** Creates a note and emits the new DB ID via [savedNoteIdState] for callers that need it. */
+    fun createNoteForEditor(note: Note) {
+        viewModelScope.launch {
+            try {
+                val id = noteRepository.createNote(note)
+                loadAllNotes()
+                _savedNoteIdState.value = id
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun consumeSavedNoteId() {
+        _savedNoteIdState.value = null
+    }
+
     fun updateNote(note: Note) {
         viewModelScope.launch {
             try {

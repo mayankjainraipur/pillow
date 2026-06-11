@@ -2,6 +2,7 @@ package com.pillow.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.pillow.data.repository.AttachmentRepository
 import com.pillow.data.repository.CategoryRepository
 import com.pillow.data.repository.NoteRepository
 import com.pillow.data.repository.TagRepository
@@ -21,7 +22,8 @@ import javax.inject.Inject
 class NoteViewModel @Inject constructor(
     private val noteRepository: NoteRepository,
     private val categoryRepository: CategoryRepository,
-    private val tagRepository: TagRepository
+    private val tagRepository: TagRepository,
+    private val attachmentRepository: AttachmentRepository
 ) : ViewModel() {
 
     // The list as loaded from the active data source (all / favorites / pinned /
@@ -34,8 +36,8 @@ class NoteViewModel @Inject constructor(
     private val _filter = MutableStateFlow(NoteFilter.ALL)
     val filter: StateFlow<NoteFilter> = _filter.asStateFlow()
 
-    // Note ids that have image / any attachments — populated in Phase 2 (attachments).
-    // Empty until then, so the image/attachment filters simply show nothing.
+    // Note ids that have image / any attachments — drive the With Images / With
+    // Attachments filters. Kept in sync with the attachments table.
     private val _imageNoteIds = MutableStateFlow<Set<Long>>(emptySet())
     private val _attachmentNoteIds = MutableStateFlow<Set<Long>>(emptySet())
 
@@ -57,6 +59,12 @@ class NoteViewModel @Inject constructor(
 
     init {
         loadAllNotes()
+        viewModelScope.launch {
+            attachmentRepository.getImageNoteIdsFlow().collectLatest { _imageNoteIds.value = it.toSet() }
+        }
+        viewModelScope.launch {
+            attachmentRepository.getAttachmentNoteIdsFlow().collectLatest { _attachmentNoteIds.value = it.toSet() }
+        }
     }
 
     fun loadAllNotes() {

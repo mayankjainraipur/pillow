@@ -102,6 +102,10 @@ dependencies {
     // Accompanist (for permissions)
     implementation("com.google.accompanist:accompanist-permissions:0.33.2-alpha")
 
+    // Rich text editor (WYSIWYG, serializes to Markdown). rc04 is built against
+    // Kotlin 1.9.23 + Compose 1.6.x, matching this project's toolchain.
+    implementation("com.mohamedrejeb.richeditor:richeditor-compose:1.0.0-rc04")
+
     // Logging
     implementation("com.jakewharton.timber:timber:5.0.1")
 

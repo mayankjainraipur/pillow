@@ -1,5 +1,8 @@
 package com.pillow.ui.screen
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
@@ -35,6 +39,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,6 +48,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -52,10 +59,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.mohamedrejeb.richeditor.model.rememberRichTextState
+import com.mohamedrejeb.richeditor.ui.BasicRichTextEditor
 import com.pillow.domain.model.Category
 import com.pillow.domain.model.Note
+import com.pillow.presentation.viewmodel.AttachmentViewModel
 import com.pillow.presentation.viewmodel.CategoryViewModel
 import com.pillow.presentation.viewmodel.NoteViewModel
 import com.pillow.presentation.viewmodel.SettingsViewModel
@@ -74,6 +85,7 @@ fun NoteEditorScreen(
     categoryViewModel: CategoryViewModel = hiltViewModel(),
     settingsViewModel: SettingsViewModel = hiltViewModel(),
     voiceMemoViewModel: VoiceMemoViewModel = hiltViewModel(),
+    attachmentViewModel: AttachmentViewModel = hiltViewModel(),
     onBackClick: () -> Unit = {}
 ) {
     val currentNote = viewModel.currentNoteState.collectAsState()
@@ -83,16 +95,28 @@ fun NoteEditorScreen(
     val savedNoteId = viewModel.savedNoteIdState.collectAsState()
 
     var title by remember { mutableStateOf("") }
-    var content by remember { mutableStateOf("") }
+    val richTextState = rememberRichTextState()
     var selectedTheme by remember { mutableStateOf(NoteThemes.fromHex(defaultNoteColor.value)) }
     var selectedBucketId by remember { mutableStateOf<Long?>(null) }
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showLinkDialog by remember { mutableStateOf(false) }
+    var showVoiceSheet by remember { mutableStateOf(false) }
     // New notes need no loading; existing notes initialize once their data arrives.
     var initialized by remember { mutableStateOf(noteId <= 0) }
 
+    val charCount = richTextState.annotatedString.text.length
+
+    val imagePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri -> uri?.let { attachmentViewModel.addImage(it) } }
+
+    val filePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri -> uri?.let { attachmentViewModel.addFile(it) } }
+
     // For a brand-new note, apply the user's default note color once it loads.
     LaunchedEffect(defaultNoteColor.value) {
-        if (noteId <= 0 && content.isEmpty() && title.isEmpty()) {
+        if (noteId <= 0 && richTextState.annotatedString.text.isEmpty() && title.isEmpty()) {
             selectedTheme = NoteThemes.fromHex(defaultNoteColor.value)
         }
     }
@@ -104,15 +128,17 @@ fun NoteEditorScreen(
         }
     }
 
-    // Trigger the load exactly once per noteId (not on every recomposition).
+    // Trigger the load exactly once per noteId, and point the attachment VM at it.
     LaunchedEffect(noteId) {
         if (noteId > 0) viewModel.loadNoteById(noteId)
+        attachmentViewModel.setNote(noteId)
     }
 
-    // After a new note is created, commit any pending voice memos then navigate back.
+    // After a new note is created, commit pending voice memos + attachments then navigate back.
     LaunchedEffect(savedNoteId.value) {
         val newId = savedNoteId.value ?: return@LaunchedEffect
         voiceMemoViewModel.commitPendingMemos(newId)
+        attachmentViewModel.commitPending(newId)
         viewModel.consumeSavedNoteId()
         onBackClick()
     }
@@ -123,11 +149,18 @@ fun NoteEditorScreen(
         val note = currentNote.value
         if (!initialized && note != null && note.id == noteId) {
             title = note.title
-            content = note.content
+            richTextState.setMarkdown(note.content)
             selectedTheme = NoteThemes.fromHex(note.color)
             // Fall back to the default bucket if the note somehow had none.
             selectedBucketId = note.categoryId ?: defaultBucketId.value
             initialized = true
+        }
+    }
+
+    fun discardIfNew() {
+        if (noteId <= 0) {
+            voiceMemoViewModel.discardPendingMemos()
+            attachmentViewModel.discardPending()
         }
     }
 
@@ -137,7 +170,7 @@ fun NoteEditorScreen(
                 title = { Text(if (noteId > 0) "Edit Note" else "New Note") },
                 navigationIcon = {
                     IconButton(onClick = {
-                        if (noteId <= 0) voiceMemoViewModel.discardPendingMemos()
+                        discardIfNew()
                         onBackClick()
                     }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -154,16 +187,17 @@ fun NoteEditorScreen(
                     }
                     FilledIconButton(
                         onClick = {
-                            // Don't persist an empty note — discard any pending memos and leave.
-                            if (title.isBlank() && content.isBlank()) {
-                                voiceMemoViewModel.discardPendingMemos()
+                            val markdown = richTextState.toMarkdown()
+                            // Don't persist an empty note — discard any pending media and leave.
+                            if (title.isBlank() && richTextState.annotatedString.text.isBlank()) {
+                                discardIfNew()
                                 onBackClick()
                                 return@FilledIconButton
                             }
                             val note = Note(
                                 id = if (noteId > 0) noteId else 0,
                                 title = title,
-                                content = content,
+                                content = markdown,
                                 color = selectedTheme.backgroundHex,
                                 categoryId = selectedBucketId ?: defaultBucketId.value,
                                 updatedAt = System.currentTimeMillis()
@@ -172,7 +206,7 @@ fun NoteEditorScreen(
                                 viewModel.updateNote(note)
                                 onBackClick()
                             } else {
-                                // createNoteForEditor emits the ID → LaunchedEffect commits memos + navigates
+                                // createNoteForEditor emits the ID → LaunchedEffect commits media + navigates
                                 viewModel.createNoteForEditor(note)
                             }
                         },
@@ -190,6 +224,22 @@ fun NoteEditorScreen(
                     navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
                     actionIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
+            )
+        },
+        bottomBar = {
+            EditorToolbar(
+                state = richTextState,
+                onPickImage = {
+                    imagePicker.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                },
+                onPickFile = { filePicker.launch(arrayOf("*/*")) },
+                onAddLink = { showLinkDialog = true },
+                onInsertTable = {
+                    richTextState.replaceSelectedText("\n| Col 1 | Col 2 |\n| --- | --- |\n|  |  |\n")
+                },
+                onVoice = { showVoiceSheet = true }
             )
         },
         containerColor = selectedTheme.background
@@ -225,7 +275,7 @@ fun NoteEditorScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    "$displayDate  ·  ${content.length} chars",
+                    "$displayDate  ·  $charCount chars",
                     style = MaterialTheme.typography.labelMedium,
                     color = selectedTheme.onBackground
                 )
@@ -253,20 +303,18 @@ fun NoteEditorScreen(
             HorizontalDivider(color = selectedTheme.onBackground.copy(alpha = 0.2f))
             Spacer(modifier = Modifier.height(8.dp))
 
-            TextField(
-                value = content,
-                onValueChange = { content = it },
+            BasicRichTextEditor(
+                state = richTextState,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(300.dp),
-                placeholder = { Text("Start typing...") },
-                textStyle = MaterialTheme.typography.bodyMedium,
-                colors = fieldColors
+                    .heightIn(min = 280.dp),
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = selectedTheme.onBackground),
+                cursorBrush = SolidColor(selectedTheme.onBackground)
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            VoiceMemoSection(noteId = noteId, labelColor = selectedTheme.onBackground)
+            AttachmentSection(noteId = noteId, labelColor = selectedTheme.onBackground)
         }
     }
 
@@ -293,6 +341,62 @@ fun NoteEditorScreen(
             }
         )
     }
+
+    if (showLinkDialog) {
+        LinkDialog(
+            onDismiss = { showLinkDialog = false },
+            onConfirm = { text, url ->
+                if (url.isNotBlank()) {
+                    richTextState.addLink(text.ifBlank { url }, url)
+                }
+                showLinkDialog = false
+            }
+        )
+    }
+
+    if (showVoiceSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showVoiceSheet = false },
+            sheetState = rememberModalBottomSheetState()
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                VoiceMemoSection(noteId = noteId)
+                Spacer(Modifier.height(24.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun LinkDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (text: String, url: String) -> Unit
+) {
+    var text by remember { mutableStateOf("") }
+    var url by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add link") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Text("Text") },
+                    singleLine = true
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it },
+                    label = { Text("URL (https://…)") },
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = { onConfirm(text, url) }) { Text("Add") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
 
 @Composable

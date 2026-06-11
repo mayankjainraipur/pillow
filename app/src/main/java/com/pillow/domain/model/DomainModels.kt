@@ -37,3 +37,19 @@ data class VoiceMemo(
     val durationMs: Long = 0,
     val createdAt: Long = System.currentTimeMillis()
 )
+
+data class Attachment(
+    val id: Long = 0,
+    val noteId: Long,
+    val filePath: String,
+    /** [AttachmentType.IMAGE] or [AttachmentType.FILE]. */
+    val type: String,
+    val mimeType: String = "",
+    val displayName: String = "",
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+object AttachmentType {
+    const val IMAGE = "image"
+    const val FILE = "file"
+}

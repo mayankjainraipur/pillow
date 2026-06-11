@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -19,17 +18,22 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -50,12 +54,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.pillow.domain.model.Category
 import com.pillow.domain.model.Note
 import com.pillow.presentation.viewmodel.CategoryViewModel
 import com.pillow.presentation.viewmodel.NoteViewModel
 import com.pillow.presentation.viewmodel.SettingsViewModel
 import com.pillow.ui.theme.NoteTheme
 import com.pillow.ui.theme.NoteThemes
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -130,6 +138,31 @@ fun NoteEditorScreen(
                             Icon(Icons.Filled.Delete, contentDescription = "Move to Trash")
                         }
                     }
+                    FilledIconButton(
+                        onClick = {
+                            // Don't persist an empty note — just leave the editor.
+                            if (title.isBlank() && content.isBlank()) {
+                                onBackClick()
+                                return@FilledIconButton
+                            }
+                            val note = Note(
+                                id = if (noteId > 0) noteId else 0,
+                                title = title,
+                                content = content,
+                                color = selectedTheme.backgroundHex,
+                                categoryId = selectedBucketId ?: defaultBucketId.value,
+                                updatedAt = System.currentTimeMillis()
+                            )
+                            if (noteId > 0) viewModel.updateNote(note) else viewModel.createNote(note)
+                            onBackClick()
+                        },
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.onPrimary,
+                            contentColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(Icons.Filled.Check, contentDescription = "Save")
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -159,6 +192,33 @@ fun NoteEditorScreen(
                 cursorColor = selectedTheme.onBackground
             )
 
+            val dateFormatter = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
+            val displayDate = remember(currentNote.value?.updatedAt, noteId) {
+                val ts = if (noteId > 0) currentNote.value?.updatedAt ?: System.currentTimeMillis()
+                         else System.currentTimeMillis()
+                dateFormatter.format(Date(ts))
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    "$displayDate  ·  ${content.length} chars",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = selectedTheme.onBackground
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                BucketDropdown(
+                    buckets = buckets.value,
+                    selectedBucketId = selectedBucketId,
+                    onSelect = { selectedBucketId = it }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             TextField(
                 value = title,
                 onValueChange = { title = it },
@@ -169,7 +229,9 @@ fun NoteEditorScreen(
                 singleLine = true
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider(color = selectedTheme.onBackground.copy(alpha = 0.2f))
+            Spacer(modifier = Modifier.height(8.dp))
 
             TextField(
                 value = content,
@@ -184,52 +246,7 @@ fun NoteEditorScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text("Bucket", style = MaterialTheme.typography.labelLarge, color = selectedTheme.onBackground)
-            Spacer(modifier = Modifier.height(8.dp))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(buckets.value) { bucket ->
-                    FilterChip(
-                        selected = selectedBucketId == bucket.id,
-                        onClick = { selectedBucketId = bucket.id },
-                        label = { Text(bucket.name.ifEmpty { "Untitled" }) }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
             VoiceMemoSection(noteId = noteId, labelColor = selectedTheme.onBackground)
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Button(onClick = onBackClick, modifier = Modifier.weight(1f)) {
-                    Text("Cancel")
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Button(
-                    onClick = {
-                        val note = Note(
-                            id = if (noteId > 0) noteId else 0,
-                            title = title,
-                            content = content,
-                            color = selectedTheme.backgroundHex,
-                            categoryId = selectedBucketId ?: defaultBucketId.value,
-                            updatedAt = System.currentTimeMillis()
-                        )
-                        if (noteId > 0) viewModel.updateNote(note) else viewModel.createNote(note)
-                        onBackClick()
-                    },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Save")
-                }
-            }
         }
     }
 
@@ -255,6 +272,32 @@ fun NoteEditorScreen(
                 TextButton(onClick = { showThemeDialog = false }) { Text("Done") }
             }
         )
+    }
+}
+
+@Composable
+private fun BucketDropdown(
+    buckets: List<Category>,
+    selectedBucketId: Long?,
+    onSelect: (Long) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val label = buckets.firstOrNull { it.id == selectedBucketId }
+        ?.name?.ifEmpty { "Untitled" } ?: "Bucket"
+    Box {
+        AssistChip(
+            onClick = { expanded = true },
+            label = { Text(label) },
+            trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) }
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            buckets.forEach { bucket ->
+                DropdownMenuItem(
+                    text = { Text(bucket.name.ifEmpty { "Untitled" }) },
+                    onClick = { onSelect(bucket.id); expanded = false }
+                )
+            }
+        }
     }
 }
 

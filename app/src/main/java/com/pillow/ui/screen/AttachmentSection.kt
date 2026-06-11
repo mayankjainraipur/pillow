@@ -45,7 +45,6 @@ import java.io.File
  */
 @Composable
 fun AttachmentSection(
-    noteId: Long,
     labelColor: Color = MaterialTheme.colorScheme.onSurface,
     viewModel: AttachmentViewModel = hiltViewModel()
 ) {

@@ -314,7 +314,7 @@ fun NoteEditorScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            AttachmentSection(noteId = noteId, labelColor = selectedTheme.onBackground)
+            AttachmentSection(labelColor = selectedTheme.onBackground)
         }
     }
 

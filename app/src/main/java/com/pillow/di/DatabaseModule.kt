@@ -35,4 +35,8 @@ object DatabaseModule {
     @Singleton
     @Provides
     fun provideVoiceMemoDao(database: PillowDatabase) = database.voiceMemoDao()
+
+    @Singleton
+    @Provides
+    fun provideAttachmentDao(database: PillowDatabase) = database.attachmentDao()
 }

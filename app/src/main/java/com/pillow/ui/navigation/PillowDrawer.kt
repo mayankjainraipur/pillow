@@ -7,10 +7,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ViewList
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
@@ -28,6 +31,9 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun PillowDrawerContent(
     onNotesClick: () -> Unit,
+    onFavoritesClick: () -> Unit,
+    onPinnedClick: () -> Unit,
+    onArchiveClick: () -> Unit,
     onBucketsClick: () -> Unit,
     onTrashClick: () -> Unit,
     onSettingsClick: () -> Unit,
@@ -48,6 +54,27 @@ fun PillowDrawerContent(
                 label = { Text("Notes") },
                 selected = true,
                 onClick = onNotesClick,
+                modifier = Modifier.fillMaxWidth()
+            )
+            NavigationDrawerItem(
+                icon = { Icon(Icons.Filled.Star, contentDescription = null) },
+                label = { Text("Favorites") },
+                selected = false,
+                onClick = onFavoritesClick,
+                modifier = Modifier.fillMaxWidth()
+            )
+            NavigationDrawerItem(
+                icon = { Icon(Icons.Filled.PushPin, contentDescription = null) },
+                label = { Text("Pinned") },
+                selected = false,
+                onClick = onPinnedClick,
+                modifier = Modifier.fillMaxWidth()
+            )
+            NavigationDrawerItem(
+                icon = { Icon(Icons.Filled.Archive, contentDescription = null) },
+                label = { Text("Archive") },
+                selected = false,
+                onClick = onArchiveClick,
                 modifier = Modifier.fillMaxWidth()
             )
             NavigationDrawerItem(

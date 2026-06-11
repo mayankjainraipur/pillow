@@ -34,6 +34,12 @@ data class NoteEntity(
     @ColumnInfo(name = "is_archived")
     val isArchived: Boolean = false,
 
+    @ColumnInfo(name = "is_favorite")
+    val isFavorite: Boolean = false,
+
+    @ColumnInfo(name = "is_shared")
+    val isShared: Boolean = false,
+
     @ColumnInfo(name = "is_deleted")
     val isDeleted: Boolean = false,
 

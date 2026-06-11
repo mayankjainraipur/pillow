@@ -10,6 +10,8 @@ data class Note(
     val categoryId: Long? = null,
     val color: String = "#FFFFFF",
     val isArchived: Boolean = false,
+    val isFavorite: Boolean = false,
+    val isShared: Boolean = false,
     val isDeleted: Boolean = false,
     val deletedAt: Long? = null,
     val tags: List<Tag> = emptyList()

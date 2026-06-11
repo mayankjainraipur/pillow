@@ -35,6 +35,9 @@ interface NoteDao {
     @Query("SELECT * FROM notes WHERE is_pinned = 1 AND is_archived = 0 AND is_deleted = 0 ORDER BY updated_at DESC")
     fun getPinnedNotesFlow(): Flow<List<NoteEntity>>
 
+    @Query("SELECT * FROM notes WHERE is_favorite = 1 AND is_archived = 0 AND is_deleted = 0 ORDER BY is_pinned DESC, updated_at DESC")
+    fun getFavoriteNotesFlow(): Flow<List<NoteEntity>>
+
     @Query("SELECT * FROM notes WHERE is_deleted = 1 ORDER BY deleted_at DESC")
     fun getTrashedNotesFlow(): Flow<List<NoteEntity>>
 
@@ -66,6 +69,15 @@ interface NoteDao {
 
     @Query("UPDATE notes SET is_archived = :archived WHERE id = :noteId")
     suspend fun updateNoteArchivedStatus(noteId: Long, archived: Boolean)
+
+    @Query("UPDATE notes SET is_favorite = :favorite WHERE id = :noteId")
+    suspend fun updateNoteFavoriteStatus(noteId: Long, favorite: Boolean)
+
+    @Query("UPDATE notes SET is_shared = :shared WHERE id = :noteId")
+    suspend fun updateNoteSharedStatus(noteId: Long, shared: Boolean)
+
+    @Query("UPDATE notes SET category_id = :categoryId WHERE id = :noteId")
+    suspend fun updateNoteCategory(noteId: Long, categoryId: Long?)
 
     @Query("UPDATE notes SET is_deleted = :deleted, deleted_at = :deletedAt WHERE id = :noteId")
     suspend fun updateNoteDeletedStatus(noteId: Long, deleted: Boolean, deletedAt: Long?)

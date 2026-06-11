@@ -9,6 +9,8 @@ import com.pillow.ui.screen.BucketDetailScreen
 import com.pillow.ui.screen.BucketsScreen
 import com.pillow.ui.screen.HomeScreen
 import com.pillow.ui.screen.NoteEditorScreen
+import com.pillow.ui.screen.NoteSection
+import com.pillow.ui.screen.NoteSectionScreen
 import com.pillow.ui.screen.SettingsScreen
 import com.pillow.ui.screen.TrashScreen
 
@@ -19,6 +21,9 @@ sealed class PillowScreen(val route: String) {
     }
     object Settings : PillowScreen("settings")
     object Trash : PillowScreen("trash")
+    object Favorites : PillowScreen("favorites")
+    object Pinned : PillowScreen("pinned")
+    object Archive : PillowScreen("archive")
     object Buckets : PillowScreen("buckets")
     object BucketDetail : PillowScreen("buckets/{bucketId}") {
         fun createRoute(bucketId: Long) = "buckets/$bucketId"
@@ -39,6 +44,15 @@ fun PillowNavGraph(navController: NavHostController) {
                 },
                 onCreateNoteClick = {
                     navController.navigate(PillowScreen.NoteEditor.createRoute(null))
+                },
+                onFavoritesClick = {
+                    navController.navigate(PillowScreen.Favorites.route)
+                },
+                onPinnedClick = {
+                    navController.navigate(PillowScreen.Pinned.route)
+                },
+                onArchiveClick = {
+                    navController.navigate(PillowScreen.Archive.route)
                 },
                 onBucketsClick = {
                     navController.navigate(PillowScreen.Buckets.route)
@@ -69,6 +83,36 @@ fun PillowNavGraph(navController: NavHostController) {
 
         composable(PillowScreen.Trash.route) {
             TrashScreen(onBackClick = { navController.popBackStack() })
+        }
+
+        composable(PillowScreen.Favorites.route) {
+            NoteSectionScreen(
+                section = NoteSection.FAVORITES,
+                onBackClick = { navController.popBackStack() },
+                onNoteClick = { noteId ->
+                    navController.navigate(PillowScreen.NoteEditor.createRoute(noteId))
+                }
+            )
+        }
+
+        composable(PillowScreen.Pinned.route) {
+            NoteSectionScreen(
+                section = NoteSection.PINNED,
+                onBackClick = { navController.popBackStack() },
+                onNoteClick = { noteId ->
+                    navController.navigate(PillowScreen.NoteEditor.createRoute(noteId))
+                }
+            )
+        }
+
+        composable(PillowScreen.Archive.route) {
+            NoteSectionScreen(
+                section = NoteSection.ARCHIVE,
+                onBackClick = { navController.popBackStack() },
+                onNoteClick = { noteId ->
+                    navController.navigate(PillowScreen.NoteEditor.createRoute(noteId))
+                }
+            )
         }
 
         composable(PillowScreen.Buckets.route) {

@@ -76,6 +76,15 @@ class NoteRepository @Inject constructor(
         }
     }
 
+    fun getFavoriteNotesFlow(): Flow<List<Note>> {
+        return noteDao.getFavoriteNotesFlow().map { entities ->
+            entities.map { entity ->
+                val tags = tagDao.getTagsForNote(entity.id)
+                entityToNote(entity, tags.map { tag -> com.pillow.domain.model.Tag(tag.id, tag.name) })
+            }
+        }
+    }
+
     fun getPinnedNotesFlow(): Flow<List<Note>> {
         return noteDao.getPinnedNotesFlow().map { entities ->
             entities.map { entity ->
@@ -111,6 +120,32 @@ class NoteRepository @Inject constructor(
         noteDao.updateNoteArchivedStatus(noteId, archived)
     }
 
+    suspend fun updateNoteFavoriteStatus(noteId: Long, favorite: Boolean) {
+        noteDao.updateNoteFavoriteStatus(noteId, favorite)
+    }
+
+    suspend fun updateNoteSharedStatus(noteId: Long, shared: Boolean) {
+        noteDao.updateNoteSharedStatus(noteId, shared)
+    }
+
+    suspend fun moveNoteToBucket(noteId: Long, categoryId: Long?) {
+        noteDao.updateNoteCategory(noteId, categoryId)
+    }
+
+    /** Insert a copy of an existing note (new id, fresh timestamps, "(copy)" suffix). */
+    suspend fun duplicateNote(noteId: Long): Long {
+        val original = noteDao.getNoteById(noteId) ?: return -1
+        val now = System.currentTimeMillis()
+        val copy = original.copy(
+            id = 0,
+            title = (original.title.ifEmpty { "Untitled" }) + " (copy)",
+            createdAt = now,
+            updatedAt = now,
+            isShared = false
+        )
+        return noteDao.insertNote(copy)
+    }
+
     /** Soft-delete: move a note to the Trash, stamping the time it was trashed. */
     suspend fun moveNoteToTrash(noteId: Long) {
         noteDao.updateNoteDeletedStatus(noteId, deleted = true, deletedAt = System.currentTimeMillis())
@@ -140,6 +175,8 @@ class NoteRepository @Inject constructor(
             categoryId = note.categoryId,
             color = note.color,
             isArchived = note.isArchived,
+            isFavorite = note.isFavorite,
+            isShared = note.isShared,
             isDeleted = note.isDeleted,
             deletedAt = note.deletedAt
         )
@@ -156,6 +193,8 @@ class NoteRepository @Inject constructor(
             categoryId = entity.categoryId,
             color = entity.color,
             isArchived = entity.isArchived,
+            isFavorite = entity.isFavorite,
+            isShared = entity.isShared,
             isDeleted = entity.isDeleted,
             deletedAt = entity.deletedAt,
             tags = tags

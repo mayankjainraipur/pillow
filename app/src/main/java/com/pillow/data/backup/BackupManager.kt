@@ -84,6 +84,8 @@ class BackupManager @Inject constructor(
                     put("categoryId", n.categoryId ?: JSONObject.NULL)
                     put("color", n.color)
                     put("isArchived", n.isArchived)
+                    put("isFavorite", n.isFavorite)
+                    put("isShared", n.isShared)
                     put("isDeleted", n.isDeleted)
                     put("deletedAt", n.deletedAt ?: JSONObject.NULL)
                 }
@@ -130,6 +132,8 @@ class BackupManager @Inject constructor(
                     categoryId = remappedCategoryId,
                     color = n.optString("color", "#FFFFFF"),
                     isArchived = n.optBoolean("isArchived", false),
+                    isFavorite = n.optBoolean("isFavorite", false),
+                    isShared = n.optBoolean("isShared", false),
                     isDeleted = n.optBoolean("isDeleted", false),
                     deletedAt = if (n.isNull("deletedAt")) null else n.optLong("deletedAt")
                 )

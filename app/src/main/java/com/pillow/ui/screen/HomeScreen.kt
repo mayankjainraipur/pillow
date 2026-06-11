@@ -1,31 +1,23 @@
 package com.pillow.ui.screen
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -45,16 +37,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.pillow.domain.model.Note
+import com.pillow.presentation.viewmodel.CategoryViewModel
+import com.pillow.presentation.viewmodel.NoteFilter
 import com.pillow.presentation.viewmodel.NoteViewModel
 import com.pillow.presentation.viewmodel.SettingsViewModel
+import com.pillow.presentation.viewmodel.SortOption
 import com.pillow.ui.navigation.PillowDrawerContent
-import com.pillow.ui.theme.NoteThemes
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,14 +53,21 @@ import kotlinx.coroutines.launch
 fun HomeScreen(
     viewModel: NoteViewModel = hiltViewModel(),
     settingsViewModel: SettingsViewModel = hiltViewModel(),
+    categoryViewModel: CategoryViewModel = hiltViewModel(),
     onNoteClick: (Long) -> Unit = {},
     onCreateNoteClick: () -> Unit = {},
+    onFavoritesClick: () -> Unit = {},
+    onPinnedClick: () -> Unit = {},
+    onArchiveClick: () -> Unit = {},
     onBucketsClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onTrashClick: () -> Unit = {},
     onBackupClick: () -> Unit = {}
 ) {
     val notes = viewModel.notesState.collectAsState()
+    val buckets = categoryViewModel.categoriesState.collectAsState()
+    val sortOption = viewModel.sortOption.collectAsState()
+    val filter = viewModel.filter.collectAsState()
     val searchQuery = remember { mutableStateOf("") }
     val defaultTileView = settingsViewModel.defaultTileViewState.collectAsState()
 
@@ -77,14 +75,22 @@ fun HomeScreen(
     var userToggledTile by remember { mutableStateOf<Boolean?>(null) }
     val isTileView = userToggledTile ?: defaultTileView.value
 
+    var showSortMenu by remember { mutableStateOf(false) }
+    var showFilterMenu by remember { mutableStateOf(false) }
+
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+
+    val actions = rememberNoteActions(viewModel, onNoteClick)
 
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
             PillowDrawerContent(
                 onNotesClick = { scope.launch { drawerState.close() } },
+                onFavoritesClick = { scope.launch { drawerState.close() }; onFavoritesClick() },
+                onPinnedClick = { scope.launch { drawerState.close() }; onPinnedClick() },
+                onArchiveClick = { scope.launch { drawerState.close() }; onArchiveClick() },
                 onBucketsClick = { scope.launch { drawerState.close() }; onBucketsClick() },
                 onTrashClick = { scope.launch { drawerState.close() }; onTrashClick() },
                 onSettingsClick = { scope.launch { drawerState.close() }; onSettingsClick() },
@@ -101,10 +107,55 @@ fun HomeScreen(
                             Icon(Icons.Filled.Menu, contentDescription = "Menu")
                         }
                     },
+                    actions = {
+                        Box {
+                            IconButton(onClick = { showSortMenu = true }) {
+                                Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Sort")
+                            }
+                            DropdownMenu(
+                                expanded = showSortMenu,
+                                onDismissRequest = { showSortMenu = false }
+                            ) {
+                                SortOption.values().forEach { option ->
+                                    DropdownMenuItem(
+                                        text = { Text(option.label) },
+                                        trailingIcon = {
+                                            if (option == sortOption.value) {
+                                                Icon(Icons.Filled.Check, contentDescription = null)
+                                            }
+                                        },
+                                        onClick = { viewModel.setSort(option); showSortMenu = false }
+                                    )
+                                }
+                            }
+                        }
+                        Box {
+                            IconButton(onClick = { showFilterMenu = true }) {
+                                Icon(Icons.Filled.FilterList, contentDescription = "Filter")
+                            }
+                            DropdownMenu(
+                                expanded = showFilterMenu,
+                                onDismissRequest = { showFilterMenu = false }
+                            ) {
+                                NoteFilter.values().forEach { option ->
+                                    DropdownMenuItem(
+                                        text = { Text(option.label) },
+                                        trailingIcon = {
+                                            if (option == filter.value) {
+                                                Icon(Icons.Filled.Check, contentDescription = null)
+                                            }
+                                        },
+                                        onClick = { viewModel.setFilter(option); showFilterMenu = false }
+                                    )
+                                }
+                            }
+                        }
+                    },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                        navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                        navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
+                        actionIconContentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 )
             },
@@ -147,98 +198,33 @@ fun HomeScreen(
                     shape = RoundedCornerShape(28.dp)
                 )
 
-                if (notes.value.isEmpty()) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text("No notes yet", style = MaterialTheme.typography.headlineMedium)
-                        Text(
-                            "Create your first note to get started",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                } else if (isTileView) {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(notes.value) { note ->
-                            NoteItemCard(note = note, onClick = { onNoteClick(note.id) })
-                        }
-                    }
-                } else {
-                    LazyColumn(
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(notes.value) { note ->
-                            NoteItemCard(note = note, onClick = { onNoteClick(note.id) })
-                        }
-                    }
-                }
+                NoteListContent(
+                    notes = notes.value,
+                    isTileView = isTileView,
+                    buckets = buckets.value,
+                    actions = actions,
+                    modifier = Modifier.fillMaxSize()
+                )
             }
         }
     }
 }
 
+/** Builds the standard set of [NoteActions] backed by [NoteViewModel]. Shared by all list screens. */
 @Composable
-fun NoteItemCard(
-    note: Note,
-    onClick: () -> Unit = {}
-) {
-    val theme = NoteThemes.fromHex(note.color)
-    androidx.compose.material3.Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(4.dp),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = theme.background)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = note.title.ifEmpty { "Untitled" },
-                    style = MaterialTheme.typography.titleMedium,
-                    color = theme.onBackground,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (note.isPinned) {
-                    Icon(
-                        imageVector = Icons.Filled.PushPin,
-                        contentDescription = "Pinned",
-                        tint = theme.onBackground,
-                        modifier = Modifier.width(16.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = note.content.take(100),
-                style = MaterialTheme.typography.bodySmall,
-                color = theme.onBackground.copy(alpha = 0.75f),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
+fun rememberNoteActions(
+    viewModel: NoteViewModel,
+    onNoteClick: (Long) -> Unit
+): NoteActions = remember(viewModel, onNoteClick) {
+    NoteActions(
+        onClick = onNoteClick,
+        onTogglePin = { viewModel.togglePinnedNote(it.id, it.isPinned) },
+        onToggleFavorite = { viewModel.toggleFavoriteNote(it.id, it.isFavorite) },
+        onDuplicate = { viewModel.duplicateNote(it.id) },
+        onMoveToBucket = { note, bucketId -> viewModel.moveNoteToBucket(note.id, bucketId) },
+        onMarkShared = { viewModel.markShared(it.id) },
+        onArchive = { viewModel.archiveNote(it.id) },
+        onUnarchive = { viewModel.unarchiveNote(it.id) },
+        onDelete = { viewModel.trashNote(it.id) }
+    )
 }
